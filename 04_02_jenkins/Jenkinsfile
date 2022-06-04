@@ -2,7 +2,8 @@ node {
     stage('Clone') { // for display purposes
         // Clone the configurations repository
         cleanWs()
-        git 'https://github.com/kumarvt/advanced-terraform-2823489.git'   
+        git 'https://github.com/kumarvt/advanced-terraform-2823489.git'
+        sh "find . -type f -ls"
     }
     stage('Download') {
         // Download Terraform
@@ -12,8 +13,9 @@ node {
     }
     stage('Backend-Init') {
         // Initialize the Terraform configuration
-        dir('03_01_remotestate/remote_resources') {
-            sh script: '../../terraform init -no-color -input=false'
+        sh "cd ./03_02-03_remotestate/remote_resources/ && pwd && find . -type f -ls"
+        dir('03_02-03_remotestate/remote_resources') {
+            sh script: 'pwd && find . -type f -ls && ../../terraform init -no-color -input=false'
         }
         
     }
@@ -21,7 +23,7 @@ node {
         // Create Terraform plan for backend resources
         withCredentials([string(credentialsId: 'AWS_ACCESS_KEY', variable: 'aws_access_key'), 
                         string(credentialsId: 'AWS_SECRET_KEY', variable: 'aws_secret_key')]) {
-            dir('03_01_remotestate/remote_resources') {
+            dir('03_02-03_remotestate/remote_resources') {
                 sh script: '../../terraform plan -no-color \
                         -out backend.tfplan \
                         -var="aws_access_key=$aws_access_key" \
@@ -32,7 +34,7 @@ node {
     stage('Backend-Apply') {
         withCredentials([string(credentialsId: 'AWS_ACCESS_KEY', variable: 'aws_access_key'), 
                         string(credentialsId: 'AWS_SECRET_KEY', variable: 'aws_secret_key')]) {
-                            dir('03_01_remotestate/remote_resources') {
+                            dir('03_02-03_remotestate/remote_resources') {
                                 sh script: '../../terraform apply -no-color backend.tfplan'
                             }
         }
@@ -40,7 +42,7 @@ node {
     stage('Config-Init') {
         withCredentials([string(credentialsId: 'AWS_ACCESS_KEY', variable: 'aws_access_key'), 
                         string(credentialsId: 'AWS_SECRET_KEY', variable: 'aws_secret_key')]) {
-                            dir('03_01_remotestate') {
+                            dir('03_02-03_remotestate') {
                                 sh script: '../terraform init -no-color \
                                             -backend-config="bucket=red30-tfstate-vk" \
                                             -backend-config="key=red30/ecommerceapp/app.state" \
@@ -55,7 +57,7 @@ node {
         // Generate Terraform plan
         withCredentials([string(credentialsId: 'AWS_ACCESS_KEY', variable: 'aws_access_key'), 
                         string(credentialsId: 'AWS_SECRET_KEY', variable: 'aws_secret_key')]) {
-                            dir('03_01_remotestate') {
+                            dir('03_02-03_remotestate') {
                                 sh script: '../terraform plan -no-color \
                                             -out s1.tfplan \
                                             -var="aws_access_key=$aws_access_key" \
@@ -67,7 +69,7 @@ node {
         // Apply the configuration
         withCredentials([string(credentialsId: 'AWS_ACCESS_KEY', variable: 'aws_access_key'), 
                         string(credentialsId: 'AWS_SECRET_KEY', variable: 'aws_secret_key')]) {
-                            dir('03_01_remotestate') {
+                            dir('03_02-03_remotestate') {
                                 sh script: '../terraform apply s1.tfplan -no-color'
                             }
         }
@@ -76,13 +78,13 @@ node {
         input 'Destroy?'
         withCredentials([string(credentialsId: 'AWS_ACCESS_KEY', variable: 'aws_access_key'), 
                         string(credentialsId: 'AWS_SECRET_KEY', variable: 'aws_secret_key')]) {
-            dir('03_01_remotestate') {
+            dir('03_02-03_remotestate') {
                 sh script: '../terraform destroy -no-color \
                         -auto-approve \
                         -var="aws_access_key=$aws_access_key" \
                         -var="aws_secret_key=$aws_secret_key"'
             }
-            dir('03_01_remotestate/remote_resources') {
+            dir('03_02-03_remotestate/remote_resources') {
                 sh script: '../../terraform destroy -no-color \
                         -auto-approve \
                         -var="aws_access_key=$aws_access_key" \
